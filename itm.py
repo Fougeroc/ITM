@@ -507,8 +507,10 @@ class LabelledPermutationOver(SageObject):
         self._perm = perm
         if labels: self._labels = labels
         else: self._labels = self._perm._alphabet
+
     def __repr__(self):
         return str(self._perm)
+
     def rauzy_matrix(self, move):
         from sage.matrix.special import identity_matrix
         n = len(self._perm)
