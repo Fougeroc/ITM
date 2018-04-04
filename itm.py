@@ -512,6 +512,10 @@ class LabelledPermutationOver(SageObject):
         return str(self._perm)
 
     def rauzy_matrix(self, move):
+        r"""
+        Matrix which express
+        the 6 parameters that yield the given vector
+        """
         from sage.matrix.special import identity_matrix
         n = len(self._perm)
         if move is None:
@@ -571,33 +575,70 @@ class LabelledPermutationOver(SageObject):
         import random
         return random.choice(self.moves())
 
-    def right_matrix(self):
+    def right_matrix(self, included):
+        r"""
+        Linear map from 4 parameters of lengths between singularities in the image
+        taken in order of appeareance (whitout repitition) to 6 parameters given
+        by length and translations.
+        """
         ind = self._labels.rank
         perm = self._perm
-        left_letter = perm[1][0]
-        middle_letter = perm[1][1]
-        right_letter = perm[1][2]
+        left, middle, right = map(ind, perm[1])
+
         m = zero_matrix(6,4)
-        for i in range(3):
-            m[i,i] = 1
-        m[ind(middle_letter)+3,3] = 1
+
+        if included:
+            for i in range(3):
+                m[left,i] = 1
+            m[middle,1] = 1
+        else:
+            for i in range(2):
+                m[left,i] = 1
+                m[middle,i+1] = 1
+
+        m[right,3] = 1
+
+        m[middle+3,0] = 1
         for i in range(perm._twin[1][1]):
-            m[ind(middle_letter)+3,ind(perm[0][i])] = -1
+            m[middle+3] -= m[ind(perm[0][i])]
         for i in range(perm._twin[1][0]):
-            m[ind(left_letter)+3,ind(perm[0][i])] = -1
+            m[left+3] -= m[ind(perm[0][i])]
         for i in range(perm._twin[1][2]+1,3):
-            m[ind(right_letter)+3,ind(perm[0][i])] = 1
+            m[right+3] += m[ind(perm[0][i])]
+
         return m
 
-    def left_matrix(self):
+    def left_matrix(self, included):
+        r"""
+        Linear map from 6 parameters to 4 (see right_matrix).
+        """
         ind = self._labels.rank
         perm = self._perm
+        left, middle, right = map(ind, perm[1])
+
         m = zero_matrix(4,6)
-        for i in range(3):
-            m[i,i] = 1
-        m[3,ind(self._perm[1][1])+3] = 1
+
+        m[0,middle+3] = 1
         for i in range(perm._twin[1][1]):
-            m[3,ind(perm[0][i])] = 1
+            m[0,ind(perm[0][i])] = 1
+        
+        if included:
+            m[1,middle] = 1
+        else:
+            m[1,left] = 1
+            m[1] -= m[0]
+
+        if included:
+            m[2,left] = 1
+            m[2] -= m[0]
+            m[2,middle] -= 1
+        else:
+            m[2] += m[0]
+            m[2,middle] += 1
+            m[2,left] -= 1
+
+        m[3,right] = 1
+
         return m
 
     def alt_right_matrix(self):
@@ -607,6 +648,7 @@ class LabelledPermutationOver(SageObject):
         middle_letter = perm[1][1]
         right_letter = perm[1][2]
         m = zero_matrix(6,4)
+        m[middle+3,0] = 1
         for i in range(3):
             m[i,i] = 1
         m[2, 3] = 1
@@ -650,9 +692,10 @@ class LabelledPermutationOver(SageObject):
         l.append(random()*l[self._perm[0].index(self._perm[1][0])])
         return l
 
-    def matrix_path(self, s, restricted=True):
+    def matrix_path(self, s, end_included, restricted=True):
         from sage.matrix.special import identity_matrix
-        R = self.left_matrix() if restricted else identity_matrix(6)
+        included =  bool(int(s[1]) >= 2)
+        R = self.left_matrix(included) if restricted else identity_matrix(6)
         aux = copy(self)
         n = len(s)
         for i in range(n/2):
@@ -660,7 +703,7 @@ class LabelledPermutationOver(SageObject):
             R = R*aux.rauzy_matrix(move)
             aux = aux.rauzy_move(move)
         if restricted:
-            R = R*aux.right_matrix()
+            R = R*aux.right_matrix(end_included)
         return R
 
     def alt_matrix_path(self, s, restricted=True):
